@@ -24,8 +24,9 @@ void setup() {
 
 void loop() {
     int RequestedPIDs[] = {0x04, 0x05, 0x0c, 0x0e, 0x0d, 0x0f, 0x11, 0x1f, 0x2f, 0x33, 0x42, 0x43, 0x46, 0x47, 0x49, 0x4a, 0x4c, 0x5c};
+    size_t n = sizeof(RequestedPIDs) / sizeof(int);
 
-    for (int i = 0; i < sizeof(RequestedPIDs); i++){
+    for (int i = 0; i < n; i++){
         printPid(RequestedPIDs[i]);
     }
     Serial.println("-------------------------------------------");
