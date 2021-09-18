@@ -6,7 +6,7 @@ bool _useExtendedAddressing = false;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("CAN OBD-II supported pids");
+  Serial.println("OBDII Teszt");
 
   CAN.setPins(10, 2);
   CAN.setClockFrequency(8E6);
@@ -23,27 +23,12 @@ void setup() {
 }
 
 void loop() {
-  #define A value[0]
-  #define B value[1]
-  #define C value[2]
-  #define D value[3]
-  uint8_t value[4];
-  int pid = 0x00;
-  
-  if (pidRead(0x01, pid, value, sizeof(value))){
-    Serial.print("A: ");
-    Serial.println(A);
-    Serial.print("B: ");
-    Serial.println(B);
-    Serial.print("C: ");
-    Serial.println(C);
-    Serial.print("D: ");
-    Serial.println(D);
-  } else {
-     Serial.println("Hibás olvasás");
-  }
-  
-  while(1);
+    int RequestedPIDs[] = {0x04, 0x05, 0x0c, 0x0e, 0x0d, 0x0f, 0x11, 0x1f, 0x2f, 0x33, 0x42, 0x43, 0x46, 0x47, 0x49, 0x4a, 0x4c, 0x5c};
+
+    for (int i = 0; i < sizeof(RequestedPIDs); i++){
+        printPid(RequestedPIDs[i]);
+    }
+    Serial.println("-------------------------------------------");
 }
 
 int pidRead(uint8_t mode, uint8_t pid, void* data, int length)
@@ -115,4 +100,152 @@ int pidRead(uint8_t mode, uint8_t pid, void* data, int length)
   }
 
   return 0;
+}
+void printPid(int pid) {
+    switch (pid) {
+        case 0x04:
+            Serial.print("Calculated engine load: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x05:
+            Serial.print("Engine coolant temperature: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x0c:
+            Serial.print("Engine speed: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x0e:
+            Serial.print("Timing advance: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x0d:
+            Serial.print("Vehicle speed: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x0f:
+            Serial.print("Intake air temperature: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x11:
+            Serial.print("Throttle position: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x1f:
+            Serial.print("Run time since engine start: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x2f:
+            Serial.print("Fuel Tank Level Input: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x33:
+            Serial.print("Absolute Barometric Pressure: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x42:
+            Serial.print("Control module voltage: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x43:
+            Serial.print("Absolute load value: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x46:
+            Serial.print("Ambient air temperature: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x47:
+            Serial.print("Absolute throttle position B: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x49:
+            Serial.print("Accelerator pedal position D: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x4a:
+            Serial.print("Accelerator pedal position E: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x4c:
+            Serial.print("Commanded throttle actuator: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        case 0x5c:
+            Serial.print("Engine oil temperature: ");
+            Serial.println(pidReadAndProcessing(pid));
+        break;
+        default:
+            Serial.println("Nem támogatott PID!");
+  }
+}
+float pidReadAndProcessing(int pid) {
+  #define A value[0]
+  #define B value[1]
+  #define C value[2]
+  #define D value[3]
+  uint8_t value[4];
+
+  if (!pidRead(0x01, pid, value, sizeof(value))){
+    return NAN;
+  }
+
+    switch (pid) {
+        case 0x04:
+            return ((100*A)/255);
+        break;
+        case 0x05:
+            return (A-40);
+        break;
+        case 0x0c:
+            return (((256*A)+B)/4);
+        break;
+        case 0x0e:
+            return ((A/2)-64);
+        break;
+        case 0x0d:
+            return A;
+        break;
+        case 0x0f:
+            return (A-40);
+        break;
+        case 0x11:
+            return ((100*A)/255);
+        break;
+        case 0x1f:
+            return ((256*A)+B);
+        break;
+        case 0x2f:
+            return ((100*A)/255);
+        break;
+        case 0x33:
+            return A;
+        break;
+        case 0x42:
+            return (((256*A)+B)/1000);
+        break;
+        case 0x43:
+            return ((100*((256*A)+B))/255);
+        break;
+        case 0x46:
+            return (A-40);
+        break;
+        case 0x47:
+            return ((100*A)/255);
+        break;
+        case 0x49:
+            return ((100*A)/255);
+        break;
+        case 0x4a:
+            return ((100*A)/255);
+        break;
+        case 0x4c:
+            return ((100*A)/255);
+        break;
+        case 0x5c:
+            return (A-40);
+        break;
+        default:
+            return A;
+  }
 }

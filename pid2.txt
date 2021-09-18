@@ -1,0 +1,29 @@
+CAN OBD-II supported pids
+A: 174
+B: 62
+C: 184
+D: 19
+CAN OBD-II supported pids
+A: 10101110
+B: 111110
+C: 10111000
+D: 10011
+
+CAN OBD-II supported pids
+A: 10010000
+B: 111
+C: 10100000
+D: 1
+
+CAN OBD-II supported pids
+A: 11111110
+B: 11010010
+C: 0
+D: 10001
+
+CAN OBD-II supported pids
+A: 0
+B: 0
+C: 0
+D: 1
+
