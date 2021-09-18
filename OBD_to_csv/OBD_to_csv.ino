@@ -1,0 +1,178 @@
+#include <CAN.h>
+const bool useStandardAddressing = true;
+unsigned long _lastPidResponseMillis = 0;
+unsigned long _responseTimeout = 2000;
+bool _useExtendedAddressing = false;
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("0x04,0x05,0x0c,0x0e,0x0d,0x0f,0x11,0x1f,0x2f,0x33,0x42,0x43,0x46,0x47,0x49,0x4a,0x4c,0x5c");
+
+  CAN.setPins(10, 2);
+  CAN.setClockFrequency(8E6);
+  if (!CAN.begin(500E3)) {
+    Serial.println("Starting CAN failed!");
+    while (1);
+  }
+
+  if (useStandardAddressing) {
+    CAN.filter(0x7e8);
+  } else {
+    CAN.filterExtended(0x18daf110);
+  }
+}
+
+void loop() {
+    int RequestedPIDs[] = {0x04, 0x05, 0x0c, 0x0e, 0x0d, 0x0f, 0x11, 0x1f, 0x2f, 0x33, 0x42, 0x43, 0x46, 0x47, 0x49, 0x4a, 0x4c, 0x5c};
+    size_t n = sizeof(RequestedPIDs) / sizeof(int);
+
+    for (int i = 0; i < n; i++){
+        if ( i != n - 1){
+            Serial.print(pidReadAndProcessing(RequestedPIDs[i]));
+            Serial.print(",");
+        } else {
+            Serial.println(pidReadAndProcessing(RequestedPIDs[i]));
+        }
+    }
+}
+
+int pidRead(uint8_t mode, uint8_t pid, void* data, int length)
+{
+  // make sure at least 60 ms have passed since the last response
+  unsigned long lastResponseDelta = millis() - _lastPidResponseMillis;
+  if (lastResponseDelta < 60) {
+    delay(60 - lastResponseDelta);
+  }
+
+  for (int retries = 10; retries > 0; retries--) {
+    if (_useExtendedAddressing) {
+      CAN.beginExtendedPacket(0x18db33f1, 8);
+    } else {
+      CAN.beginPacket(0x7df, 8);
+    }
+    CAN.write(0x02); // number of additional bytes
+    CAN.write(mode);
+    CAN.write(pid);
+    if (CAN.endPacket()) {
+      // send success
+      break;
+    } else if (retries <= 1) {
+      return 0;
+    }
+  }
+
+  bool splitResponse = (length > 5);
+
+  for (unsigned long start = millis(); (millis() - start) < _responseTimeout;) {
+    if (CAN.parsePacket() != 0 &&
+          (splitResponse ? (CAN.read() == 0x10 && CAN.read()) : CAN.read()) &&
+          (CAN.read() == (mode | 0x40) && CAN.read() == pid)) {
+
+      _lastPidResponseMillis = millis();
+
+      // got a response
+      if (!splitResponse) {
+        return CAN.readBytes((uint8_t*)data, length);
+      }
+
+      int read = CAN.readBytes((uint8_t*)data, 3);
+
+      for (int i = 0; read < length; i++) {
+        delay(60);
+
+        // send the request for the next chunk
+        if (_useExtendedAddressing) {
+          CAN.beginExtendedPacket(0x18db33f1, 8);
+        } else {
+          CAN.beginPacket(0x7df, 8);
+        }
+        CAN.write(0x30);
+        CAN.endPacket();
+
+        // wait for response
+        while (CAN.parsePacket() == 0 ||
+               CAN.read() != (0x21 + i)); // correct sequence number
+
+        while (CAN.available()) {
+          ((uint8_t*)data)[read++] = CAN.read();
+        }
+      }
+
+      _lastPidResponseMillis = millis();
+
+      return read;
+    }
+  }
+
+  return 0;
+}
+float pidReadAndProcessing(int pid) {
+  #define A value[0]
+  #define B value[1]
+  #define C value[2]
+  #define D value[3]
+  uint8_t value[4];
+
+  if (!pidRead(0x01, pid, value, sizeof(value))){
+    return NAN;
+  }
+
+    switch (pid) {
+        case 0x04:
+            return ((100*A)/255);
+        break;
+        case 0x05:
+            return (A-40);
+        break;
+        case 0x0c:
+            return (((256*A)+B)/4);
+        break;
+        case 0x0e:
+            return ((A/2)-64);
+        break;
+        case 0x0d:
+            return A;
+        break;
+        case 0x0f:
+            return (A-40);
+        break;
+        case 0x11:
+            return ((100*A)/255);
+        break;
+        case 0x1f:
+            return ((256*A)+B);
+        break;
+        case 0x2f:
+            return ((100*A)/255);
+        break;
+        case 0x33:
+            return A;
+        break;
+        case 0x42:
+            return (((256*A)+B)/1000);
+        break;
+        case 0x43:
+            return ((100*((256*A)+B))/255);
+        break;
+        case 0x46:
+            return (A-40);
+        break;
+        case 0x47:
+            return ((100*A)/255);
+        break;
+        case 0x49:
+            return ((100*A)/255);
+        break;
+        case 0x4a:
+            return ((100*A)/255);
+        break;
+        case 0x4c:
+            return ((100*A)/255);
+        break;
+        case 0x5c:
+            return (A-40);
+        break;
+        default:
+            return A;
+  }
+}
